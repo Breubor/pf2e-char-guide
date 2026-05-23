@@ -1,50 +1,60 @@
 const FREE_ARCHETYPE_RULE = `
 FREE ARCHETYPE VARIANT RULE (active in this campaign):
 - Every character gains a bonus archetype feat at 2nd level and every even level thereafter (4th, 6th, 8th, etc.)
-- These bonus feats must be spent on archetype feats and are completely separate from the character's normal feat progression
+- These bonus feats are completely separate from the character's normal feat progression
 - A character must still meet all prerequisites for archetype feats
-- This rule means every character effectively multiclasses for free, so players should think about what archetype complements their class
+- This means every character effectively multiclasses for free
 - Common pairings: Fighter + Wizard Dedication for a gish, Rogue + Ranger Dedication for a hunter, Cleric + Martial Dedication for a battle priest
 - Archetypes are listed at: https://2e.aonprd.com/Archetypes.aspx
 `;
 
+const KNOWN_ANCESTRIES = [
+  "dwarf","elf","gnome","goblin","halfling","human","leshy","orc",
+  "catfolk","hobgoblin","kholo","kobold","lizardfolk","ratfolk","tengu","tripkee"
+];
+
+const KNOWN_VERSATILE_HERITAGES = [
+  "aasimar","changeling","dhampir","duskwalker","nephilim",
+  "half-elf","half-orc","aiuvarin","dromaar"
+];
+
+const KNOWN_CLASSES = [
+  "alchemist","barbarian","bard","champion","cleric","druid","fighter",
+  "investigator","monk","oracle","psychic","ranger","rogue","sorcerer",
+  "summoner","swashbuckler","thaumaturge","witch","wizard"
+];
+
 const TOOLS = [
   {
     name: "fetch_nethys",
-    description: "Fetch a specific page from the Archives of Nethys (2e.aonprd.com) to look up accurate PF2e rules. Use this when a player asks about a specific ancestry, class, background, feat, spell, condition, or rule. Always prefer this over relying on your training data for specific rules details.",
+    description: "Fetch a specific page from Archives of Nethys to look up accurate PF2e rules. Use for specific rule details after you have already confirmed something exists. Limit to ONE fetch per response turn to avoid timeouts.",
     input_schema: {
       type: "object",
       properties: {
-        url: {
-          type: "string",
-          description: "The full Archives of Nethys URL to fetch. Examples: https://2e.aonprd.com/Ancestries.aspx?ID=1 (Dwarf), https://2e.aonprd.com/Classes.aspx?ID=7 (Fighter), https://2e.aonprd.com/Archetypes.aspx for the archetype list."
-        },
-        reason: {
-          type: "string",
-          description: "Brief description of what you are looking up, shown to the player."
-        }
+        url: { type: "string", description: "Full Archives of Nethys URL." },
+        reason: { type: "string", description: "Brief description shown to the player." }
       },
       required: ["url", "reason"]
     }
   },
   {
     name: "verify_exists",
-    description: "Verify that an ancestry, class, background, archetype, or other game element actually exists in Pathfinder 2e by checking the Archives of Nethys category listing page. Use this BEFORE discussing any game element a player mentions that you are not completely certain exists in PF2e — especially ancestries, classes, and archetypes. If the element does not appear in the listing, it does not exist in PF2e and you must tell the player.",
+    description: `Verify a game element exists in PF2e. Use this before discussing any ancestry, class, background, archetype, feat, or spell a player mentions. 
+
+Known valid ancestries (no lookup needed): ${KNOWN_ANCESTRIES.join(", ")}
+Known valid versatile heritages (no lookup needed): ${KNOWN_VERSATILE_HERITAGES.join(", ")}  
+Known valid classes (no lookup needed): ${KNOWN_CLASSES.join(", ")}
+
+Only call this tool for things NOT in the lists above. If something is in the lists, treat it as verified and skip this tool.`,
     input_schema: {
       type: "object",
       properties: {
         category_url: {
           type: "string",
-          description: "The Nethys listing page URL for the relevant category. Use: https://2e.aonprd.com/Ancestries.aspx for ancestries, https://2e.aonprd.com/Classes.aspx for classes, https://2e.aonprd.com/Archetypes.aspx for archetypes, https://2e.aonprd.com/Backgrounds.aspx for backgrounds, https://2e.aonprd.com/Feats.aspx for feats."
+          description: "Nethys listing page. Use: https://2e.aonprd.com/Ancestries.aspx for ancestries, https://2e.aonprd.com/Heritages.aspx for versatile heritages, https://2e.aonprd.com/Classes.aspx for classes, https://2e.aonprd.com/Archetypes.aspx for archetypes, https://2e.aonprd.com/Backgrounds.aspx for backgrounds."
         },
-        term: {
-          type: "string",
-          description: "The exact name the player used that you want to verify exists in PF2e."
-        },
-        reason: {
-          type: "string",
-          description: "Brief description of what you are verifying, shown to the player."
-        }
+        term: { type: "string", description: "The exact name to verify." },
+        reason: { type: "string", description: "Brief description shown to the player." }
       },
       required: ["category_url", "term", "reason"]
     }
@@ -52,33 +62,37 @@ const TOOLS = [
 ];
 
 async function fetchNethys(url) {
-  const res = await fetch(url, {
-    headers: { "User-Agent": "PF2e-Character-Guide/1.0" }
-  });
-  if (!res.ok) throw new Error(`Nethys returned ${res.status}`);
-  const html = await res.text();
-
-  let text = html
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
-    .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-  return text.slice(0, 3000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "PF2e-Character-Guide/1.0" },
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error(`Nethys returned ${res.status}`);
+    const html = await res.text();
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    return text.slice(0, 3000);
+  } catch (err) {
+    clearTimeout(timeout);
+    throw err;
+  }
 }
 
 async function verifyExists(categoryUrl, term) {
   const text = await fetchNethys(categoryUrl);
-  const termLower = term.toLowerCase();
-  const found = text.toLowerCase().includes(termLower);
+  const found = text.toLowerCase().includes(term.toLowerCase());
   return {
     found,
     summary: found
-      ? `"${term}" was found in the Archives of Nethys listing at ${categoryUrl}.`
-      : `"${term}" was NOT found in the Archives of Nethys listing at ${categoryUrl}. This element does not appear to exist in Pathfinder 2e.`
+      ? `"${term}" was found in the Nethys listing at ${categoryUrl}.`
+      : `"${term}" was NOT found in the Nethys listing at ${categoryUrl}. This does not appear to exist in Pathfinder 2e.`
   };
 }
 
@@ -92,7 +106,7 @@ async function callAnthropic(apiKey, system, messages) {
     },
     body: JSON.stringify({
       model: "claude-sonnet-4-5",
-      max_tokens: 1500,
+      max_tokens: 1200,
       system,
       messages,
       tools: TOOLS,
@@ -123,7 +137,7 @@ exports.handler = async function (event) {
     let messages = body.messages;
     let toolLookups = [];
     let iterations = 0;
-    const MAX_ITERATIONS = 5;
+    const MAX_ITERATIONS = 4;
 
     let data = await callAnthropic(ANTHROPIC_API_KEY, system, messages);
 
@@ -140,15 +154,16 @@ exports.handler = async function (event) {
         try {
           toolResult = await fetchNethys(input.url);
         } catch (err) {
-          toolResult = `Could not fetch ${input.url}: ${err.message}`;
+          toolResult = `Could not fetch ${input.url}: ${err.message}. Please proceed without this lookup.`;
         }
       } else if (name === "verify_exists") {
         toolLookups.push({ type: "verify", reason: input.reason, url: input.category_url, term: input.term });
         try {
           const result = await verifyExists(input.category_url, input.term);
+          toolLookups[toolLookups.length - 1].found = result.found;
           toolResult = result.summary;
         } catch (err) {
-          toolResult = `Could not verify: ${err.message}`;
+          toolResult = `Could not verify "${input.term}": ${err.message}. Treat as unverified and tell the player you could not confirm it.`;
         }
       }
 
