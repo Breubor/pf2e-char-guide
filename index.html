@@ -24,6 +24,12 @@
       --lookup-bg: #0e1510;
       --lookup-border: rgba(60, 140, 80, 0.35);
       --lookup-text: #6aaa7a;
+      --verify-ok-bg: #0e1510;
+      --verify-ok-border: rgba(60, 140, 80, 0.35);
+      --verify-ok-text: #6aaa7a;
+      --verify-fail-bg: #150e0e;
+      --verify-fail-border: rgba(160, 60, 60, 0.4);
+      --verify-fail-text: #c47a7a;
     }
 
     body {
@@ -91,12 +97,7 @@
     #messages::-webkit-scrollbar-track { background: transparent; }
     #messages::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
 
-    .msg-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-
+    .msg-wrap { display: flex; flex-direction: column; gap: 3px; }
     .msg-wrap.user { align-items: flex-end; }
     .msg-wrap.assistant { align-items: flex-start; }
 
@@ -121,14 +122,12 @@
       background: var(--user-bg);
       border: 1px solid var(--border);
       border-bottom-right-radius: 0;
-      color: var(--text);
     }
 
     .msg.assistant {
       background: var(--surface);
       border: 1px solid var(--border);
       border-bottom-left-radius: 0;
-      color: var(--text);
     }
 
     .msg.thinking {
@@ -148,29 +147,47 @@
       animation: pulse 1.2s ease-in-out infinite;
     }
 
-    .lookup-notice {
-      align-self: flex-start;
-      font-size: 0.8rem;
-      font-style: italic;
-      color: var(--lookup-text);
-      background: var(--lookup-bg);
-      border: 1px solid var(--lookup-border);
-      border-radius: 2px;
-      padding: 4px 10px;
-      max-width: 85%;
-    }
-
-    .lookup-notice a {
-      color: var(--lookup-text);
-      opacity: 0.8;
-      font-size: 0.75rem;
-      margin-left: 6px;
-    }
-
     @keyframes pulse {
       0%, 100% { opacity: 0.2; }
       50% { opacity: 1; }
     }
+
+    .tool-notice {
+      font-size: 0.8rem;
+      font-style: italic;
+      border-radius: 2px;
+      padding: 4px 10px;
+      max-width: 85%;
+      align-self: flex-start;
+    }
+
+    .tool-notice.fetch {
+      color: var(--lookup-text);
+      background: var(--lookup-bg);
+      border: 1px solid var(--lookup-border);
+    }
+
+    .tool-notice.verify-ok {
+      color: var(--verify-ok-text);
+      background: var(--verify-ok-bg);
+      border: 1px solid var(--verify-ok-border);
+    }
+
+    .tool-notice.verify-fail {
+      color: var(--verify-fail-text);
+      background: var(--verify-fail-bg);
+      border: 1px solid var(--verify-fail-border);
+    }
+
+    .tool-notice a {
+      opacity: 0.75;
+      margin-left: 6px;
+      font-size: 0.75rem;
+    }
+
+    .tool-notice.fetch a { color: var(--lookup-text); }
+    .tool-notice.verify-ok a { color: var(--verify-ok-text); }
+    .tool-notice.verify-fail a { color: var(--verify-fail-text); }
 
     .quick-btns {
       display: flex;
@@ -193,10 +210,7 @@
       font-style: italic;
     }
 
-    .qbtn:hover {
-      background: var(--surface2);
-      color: var(--gold-light);
-    }
+    .qbtn:hover { background: var(--surface2); color: var(--gold-light); }
 
     .input-area {
       border-top: 1px solid var(--border);
@@ -241,11 +255,7 @@
       transition: background 0.15s, color 0.15s;
     }
 
-    #send-btn:hover:not(:disabled) {
-      background: var(--surface2);
-      color: var(--gold-light);
-    }
-
+    #send-btn:hover:not(:disabled) { background: var(--surface2); color: var(--gold-light); }
     #send-btn:disabled { opacity: 0.35; cursor: default; }
 
     .error-msg { color: #c46a6a; font-style: italic; font-size: 0.9rem; }
@@ -259,6 +269,8 @@
       border-top: 1px solid var(--border);
       font-style: italic;
     }
+
+    footer a { color: var(--text-dim); }
 
     @media (max-width: 480px) {
       .msg { max-width: 95%; font-size: 0.95rem; }
@@ -293,36 +305,26 @@
 </footer>
 
 <script>
-const SYSTEM_PROMPT = `You are a knowledgeable and friendly Pathfinder 2e character creation guide. You have access to a tool that fetches live rules from the Archives of Nethys (2e.aonprd.com).
+const SYSTEM_PROMPT = `You are a Pathfinder 2e character creation guide. Your knowledge of specific game elements — ancestries, classes, backgrounds, feats, archetypes, spells — comes ONLY from the Archives of Nethys (2e.aonprd.com) via your fetch_nethys and verify_exists tools. You do not rely on your training data for specific PF2e rules because it may contain errors or content from other game systems.
 
-Use the fetch_nethys tool whenever a player asks about something specific — an ancestry, class, background, feat, spell, or condition — where accurate rules details matter. Always tell the player you are looking something up before you do it, using natural language like "Let me check the Dwarf ancestry for you..." or "Looking that up on Nethys now...".
-
-Key Archives of Nethys URL patterns:
-- Ancestry list: https://2e.aonprd.com/Ancestries.aspx
-- Specific ancestry by ID: https://2e.aonprd.com/Ancestries.aspx?ID=1 (Dwarf=1, Elf=2, Gnome=3, Goblin=4, Halfling=5, Human=6, Leshy=8, Orc=12)
-- Class list: https://2e.aonprd.com/Classes.aspx
-- Specific class by ID: https://2e.aonprd.com/Classes.aspx?ID=7 (Fighter=7, Rogue=10, Wizard=12, Cleric=5, Bard=3, Druid=6, Ranger=9, Monk=8, Champion=4, Sorcerer=11, Barbarian=2, Swashbuckler=22, Investigator=15, Alchemist=1, Oracle=17, Witch=23)
-- Background list: https://2e.aonprd.com/Backgrounds.aspx
-- Feats: https://2e.aonprd.com/Feats.aspx?ID=1
-- Conditions: https://2e.aonprd.com/Conditions.aspx
-- Spells: https://2e.aonprd.com/Spells.aspx
-
-General rules you know without needing a lookup:
-- Attribute modifiers start at +0. Boosts add +1 (or partial if already +4). Flaws subtract 1. Max +4 at level 1
-- Proficiency ranks: Untrained (+level+0), Trained (+level+2), Expert (+level+4), Master (+level+6), Legendary (+level+8)
-- Saving throws: Fortitude (Con), Reflex (Dex), Will (Wis)
-- AC = 10 + Dex modifier (capped by armor) + proficiency bonus + armor item bonus
-- Character creation steps: concept, ancestry + heritage + ancestry feat, background, class, attribute boosts, skills, feats, equipment
+CRITICAL RULES:
+- Before discussing any ancestry, class, archetype, background, or feat that a player mentions, use verify_exists to confirm it actually exists in PF2e. Do not skip this step even for things that sound familiar.
+- If verify_exists returns NOT FOUND, tell the player clearly: that element does not exist in Pathfinder 2e. Do not try to describe it, work around it, or suggest it might exist under another name unless you have verified that alternative on Nethys.
+- Never describe rules from memory alone. If you need specific rules details, fetch them from Nethys.
+- Content from other game systems (D&D 5e, Pathfinder 1e, etc.) must never be presented as PF2e content.
+- If you are uncertain whether something exists in PF2e, verify it. Uncertainty is not a reason to guess.
 
 Your approach:
-1. Ask about the player's concept or playstyle first if they haven't shared it
-2. Suggest ancestry + class + background combos that synergize, and explain why
-3. Flag trap picks honestly — if something is mechanically awkward, say so and offer a better path
-4. Do not just validate every choice
+1. Ask about the player's concept or playstyle if they haven't shared it
+2. Suggest ancestry + class + background combos that synergize, verifying and fetching details from Nethys as you go
+3. Flag trap picks honestly — if something is mechanically awkward, say so and offer a verified alternative
+4. Do not just validate every choice. Push back when something does not work well
 5. Keep responses concise — clear guidance, not walls of text
-6. Offer 2-3 focused options when choices come up, not exhaustive lists
+6. Offer 2-3 focused options, not exhaustive lists
 7. Explain jargon when you use it
-8. When the player has settled their main choices, offer a summary
+8. When the player has settled their main choices, summarise the character
+
+Tell the player you are looking something up before each tool call, using natural phrasing like "Let me check that on Nethys..." or "Verifying that exists in PF2e...".
 
 Greet the player warmly and ask what kind of character they have in mind.`;
 
@@ -334,15 +336,12 @@ const sendBtn = document.getElementById('send-btn');
 function addMessage(role, text, isThinking = false) {
   const wrap = document.createElement('div');
   wrap.className = 'msg-wrap ' + role;
-
   const label = document.createElement('div');
   label.className = 'msg-label';
   label.textContent = role === 'user' ? 'You' : 'Guide';
-
   const div = document.createElement('div');
   div.className = 'msg ' + role + (isThinking ? ' thinking' : '');
   div.textContent = text;
-
   wrap.appendChild(label);
   wrap.appendChild(div);
   messagesEl.appendChild(wrap);
@@ -350,10 +349,19 @@ function addMessage(role, text, isThinking = false) {
   return { wrap, div };
 }
 
-function addLookupNotice(reason, url) {
+function addToolNotice(lookup) {
   const notice = document.createElement('div');
-  notice.className = 'lookup-notice';
-  notice.innerHTML = `Checking Nethys: ${reason} <a href="${url}" target="_blank" rel="noopener">[source]</a>`;
+
+  if (lookup.type === 'fetch') {
+    notice.className = 'tool-notice fetch';
+    notice.innerHTML = `Checking Nethys: ${lookup.reason} <a href="${lookup.url}" target="_blank" rel="noopener">[source]</a>`;
+  } else if (lookup.type === 'verify') {
+    const found = lookup.found;
+    notice.className = 'tool-notice ' + (found ? 'verify-ok' : 'verify-fail');
+    const icon = found ? '&#10003;' : '&#10007;';
+    notice.innerHTML = `${icon} Verifying "${lookup.term}" in PF2e <a href="${lookup.url}" target="_blank" rel="noopener">[source]</a>`;
+  }
+
   messagesEl.appendChild(notice);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
@@ -401,14 +409,10 @@ async function sendMessage(text) {
 
   try {
     const data = await callAPI(history);
-
     thinkWrap.remove();
 
-    // Show any Nethys lookups that happened server-side
     if (data.toolLookups && data.toolLookups.length > 0) {
-      data.toolLookups.forEach(lookup => {
-        addLookupNotice(lookup.reason, lookup.url);
-      });
+      data.toolLookups.forEach(lookup => addToolNotice(lookup));
     }
 
     const reply = data.reply || 'Sorry, something went wrong.';
