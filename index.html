@@ -20,8 +20,10 @@
       --text: #e8e0d0;
       --text-muted: #8a7e6a;
       --text-dim: #5a5045;
-      --red: #8b2020;
       --user-bg: #1a1508;
+      --lookup-bg: #0e1510;
+      --lookup-border: rgba(60, 140, 80, 0.35);
+      --lookup-text: #6aaa7a;
     }
 
     body {
@@ -72,6 +74,7 @@
       display: flex;
       flex-direction: column;
       padding: 0 1rem;
+      min-height: 0;
     }
 
     #messages {
@@ -81,7 +84,7 @@
       display: flex;
       flex-direction: column;
       gap: 1rem;
-      min-height: 0;
+      min-height: 60vh;
     }
 
     #messages::-webkit-scrollbar { width: 4px; }
@@ -111,6 +114,7 @@
       line-height: 1.65;
       font-size: 1rem;
       border-radius: 2px;
+      white-space: pre-wrap;
     }
 
     .msg.user {
@@ -142,6 +146,25 @@
       margin-left: 6px;
       vertical-align: middle;
       animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    .lookup-notice {
+      align-self: flex-start;
+      font-size: 0.8rem;
+      font-style: italic;
+      color: var(--lookup-text);
+      background: var(--lookup-bg);
+      border: 1px solid var(--lookup-border);
+      border-radius: 2px;
+      padding: 4px 10px;
+      max-width: 85%;
+    }
+
+    .lookup-notice a {
+      color: var(--lookup-text);
+      opacity: 0.8;
+      font-size: 0.75rem;
+      margin-left: 6px;
     }
 
     @keyframes pulse {
@@ -225,11 +248,7 @@
 
     #send-btn:disabled { opacity: 0.35; cursor: default; }
 
-    .error-msg {
-      color: #c46a6a;
-      font-style: italic;
-      font-size: 0.9rem;
-    }
+    .error-msg { color: #c46a6a; font-style: italic; font-size: 0.9rem; }
 
     footer {
       width: 100%;
@@ -270,32 +289,40 @@
 
 <footer>
   Pathfinder 2e is a trademark of Paizo Inc. This tool is unofficial and fan-made.
+  Rules sourced from <a href="https://2e.aonprd.com" target="_blank" rel="noopener">Archives of Nethys</a>.
 </footer>
 
 <script>
-const SYSTEM_PROMPT = `You are a knowledgeable and friendly Pathfinder 2e character creation guide, grounded in the Player Core and Player Core 2 rulebooks.
+const SYSTEM_PROMPT = `You are a knowledgeable and friendly Pathfinder 2e character creation guide. You have access to a tool that fetches live rules from the Archives of Nethys (2e.aonprd.com).
 
-Your role is to help players build characters that match their concept while making informed mechanical choices. You balance roleplay flavor with mechanical soundness — you help players avoid trap picks without pushing them toward pure optimization.
+Use the fetch_nethys tool whenever a player asks about something specific — an ancestry, class, background, feat, spell, or condition — where accurate rules details matter. Always tell the player you are looking something up before you do it, using natural language like "Let me check the Dwarf ancestry for you..." or "Looking that up on Nethys now...".
 
-Key rules you know:
-- Character creation steps: concept, ancestry (+ heritage + ancestry feat), background, class, attribute boosts (ancestry + background + class key attribute + 4 free), skills, feats, equipment
+Key Archives of Nethys URL patterns:
+- Ancestry list: https://2e.aonprd.com/Ancestries.aspx
+- Specific ancestry by ID: https://2e.aonprd.com/Ancestries.aspx?ID=1 (Dwarf=1, Elf=2, Gnome=3, Goblin=4, Halfling=5, Human=6, Leshy=8, Orc=12)
+- Class list: https://2e.aonprd.com/Classes.aspx
+- Specific class by ID: https://2e.aonprd.com/Classes.aspx?ID=7 (Fighter=7, Rogue=10, Wizard=12, Cleric=5, Bard=3, Druid=6, Ranger=9, Monk=8, Champion=4, Sorcerer=11, Barbarian=2, Swashbuckler=22, Investigator=15, Alchemist=1, Oracle=17, Witch=23)
+- Background list: https://2e.aonprd.com/Backgrounds.aspx
+- Feats: https://2e.aonprd.com/Feats.aspx?ID=1
+- Conditions: https://2e.aonprd.com/Conditions.aspx
+- Spells: https://2e.aonprd.com/Spells.aspx
+
+General rules you know without needing a lookup:
 - Attribute modifiers start at +0. Boosts add +1 (or partial if already +4). Flaws subtract 1. Max +4 at level 1
-- Ancestries (Player Core): Dwarf, Elf, Gnome, Goblin, Halfling, Human, Leshy, Orc. Player Core 2 adds: Catfolk, Hobgoblin, Kholo, Kobold, Lizardfolk, Ratfolk, Tengu, Tripkee
-- Classes (Player Core): Bard, Champion, Cleric, Druid, Fighter, Monk, Ranger, Rogue, Sorcerer, Witch, Wizard. Player Core 2 adds: Alchemist, Barbarian, Investigator, Oracle, Psychic, Summoner, Swashbuckler, Thaumaturge
-- Key attributes by class: Fighter = Str or Dex. Rogue = Dex. Wizard = Int. Cleric = Wis. Bard = Cha. Druid = Wis. Ranger = Str or Dex. Monk = Str or Dex. Champion = Str or Dex. Sorcerer = Cha. Barbarian = Str. Swashbuckler = Dex. Investigator = Int. Oracle = Cha. Alchemist = Int. Witch = Int. Psychic = Int or Cha. Summoner = Cha. Thaumaturge = Cha
 - Proficiency ranks: Untrained (+level+0), Trained (+level+2), Expert (+level+4), Master (+level+6), Legendary (+level+8)
 - Saving throws: Fortitude (Con), Reflex (Dex), Will (Wis)
 - AC = 10 + Dex modifier (capped by armor) + proficiency bonus + armor item bonus
+- Character creation steps: concept, ancestry + heritage + ancestry feat, background, class, attribute boosts, skills, feats, equipment
 
 Your approach:
 1. Ask about the player's concept or playstyle first if they haven't shared it
-2. Suggest ancestry + class + background combos that synergize, and explain why they work
-3. Flag trap picks gently — e.g. a Strength-based character whose ancestry imposes a Strength flaw — and suggest alternatives
-4. Don't just validate every choice. If something is mechanically awkward, say so honestly and offer a better path
-5. Keep responses concise. Players need clear guidance, not walls of text
+2. Suggest ancestry + class + background combos that synergize, and explain why
+3. Flag trap picks honestly — if something is mechanically awkward, say so and offer a better path
+4. Do not just validate every choice
+5. Keep responses concise — clear guidance, not walls of text
 6. Offer 2-3 focused options when choices come up, not exhaustive lists
-7. Use plain language. Explain jargon when you use it
-8. When the player has settled their main choices, offer a summary of the character so far
+7. Explain jargon when you use it
+8. When the player has settled their main choices, offer a summary
 
 Greet the player warmly and ask what kind of character they have in mind.`;
 
@@ -321,6 +348,14 @@ function addMessage(role, text, isThinking = false) {
   messagesEl.appendChild(wrap);
   messagesEl.scrollTop = messagesEl.scrollHeight;
   return { wrap, div };
+}
+
+function addLookupNotice(reason, url) {
+  const notice = document.createElement('div');
+  notice.className = 'lookup-notice';
+  notice.innerHTML = `Checking Nethys: ${reason} <a href="${url}" target="_blank" rel="noopener">[source]</a>`;
+  messagesEl.appendChild(notice);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 function showQuickReplies() {
@@ -351,10 +386,7 @@ async function callAPI(messages) {
     body: JSON.stringify({ system: SYSTEM_PROMPT, messages }),
   });
   if (!res.ok) throw new Error('Server error ' + res.status);
-  const data = await res.json();
-  const text = data.content?.find(b => b.type === 'text')?.text;
-  if (!text) throw new Error('Empty response');
-  return text;
+  return res.json();
 }
 
 async function sendMessage(text) {
@@ -368,8 +400,18 @@ async function sendMessage(text) {
   const { wrap: thinkWrap, div: thinkDiv } = addMessage('assistant', 'Thinking', true);
 
   try {
-    const reply = await callAPI(history);
+    const data = await callAPI(history);
+
     thinkWrap.remove();
+
+    // Show any Nethys lookups that happened server-side
+    if (data.toolLookups && data.toolLookups.length > 0) {
+      data.toolLookups.forEach(lookup => {
+        addLookupNotice(lookup.reason, lookup.url);
+      });
+    }
+
+    const reply = data.reply || 'Sorry, something went wrong.';
     addMessage('assistant', reply);
     history.push({ role: 'assistant', content: reply });
   } catch (e) {
@@ -397,8 +439,9 @@ inputEl.addEventListener('keydown', e => {
   sendBtn.disabled = true;
   const { wrap: thinkWrap, div: thinkDiv } = addMessage('assistant', 'Loading', true);
   try {
-    const greeting = await callAPI([{ role: 'user', content: 'Hello, I need help creating a Pathfinder 2e character.' }]);
+    const data = await callAPI([{ role: 'user', content: 'Hello, I need help creating a Pathfinder 2e character.' }]);
     thinkWrap.remove();
+    const greeting = data.reply || 'Hello! Tell me about the character you want to play.';
     addMessage('assistant', greeting);
     history.push({ role: 'user', content: 'Hello, I need help creating a Pathfinder 2e character.' });
     history.push({ role: 'assistant', content: greeting });
