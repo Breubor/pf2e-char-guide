@@ -2,6 +2,12 @@
   publish = "."
   functions = "netlify/functions"
 
+[functions]
+  node_bundler = "esbuild"
+
+[functions."chat"]
+  timeout = 26
+
 [[headers]]
   for = "/*"
   [headers.values]
