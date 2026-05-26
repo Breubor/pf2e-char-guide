@@ -115,7 +115,19 @@
       line-height: 1.65;
       font-size: 1rem;
       border-radius: 2px;
-      white-space: pre-wrap;
+    }
+
+    .msg ul {
+      padding-left: 1.4rem;
+      margin: 0.4rem 0;
+    }
+
+    .msg ul li {
+      margin-bottom: 0.3rem;
+    }
+
+    .msg ul + p, .msg p + ul {
+      margin-top: 0.5rem;
     }
 
     .msg.user {
@@ -351,11 +363,12 @@ Once I know that, I'll ask you about:
 
 I can help you identify which classes, archetypes, and subclasses fit your vision, find ancestries and backgrounds that complement your character thematically and support your key attributes, and choose feats that align with your goals, whether that's storytelling, mechanical performance, or both.
 
-This campaign uses the <b>Free Archetype</b> rule. At 2nd level and every even level after, you receive a bonus feat that can only be spent on archetype feats. Archetypes cover a wide range of options, from Sentinel to Loremaster, adding flavour and capability that isn't limited to class dips. Your GM may restrict which archetypes are available to fit the campaign's theme, or leave it fully open. We'll talk through your options once your core class is settled, but check in with your GM to confirm.
+This campaign uses the <b>Free Archetype</b> rule. At 2nd level and every even level after, you receive a bonus feat that can only be spent on archetype feats. Archetypes cover a wide range of options that add flavor and capabilities beyond class dips. Your GM may restrict which archetypes are available to fit the campaign's theme, or leave it fully open. We'll talk through your options once your core class is settled, but check in with your GM to confirm.
 
 So, are you going roleplay-focused, optimized, or somewhere in between?`;
 
 let history = [];
+let conversationStage = 'goal'; // goal -> playstyle -> concept -> free
 const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('user-input');
 const sendBtn = document.getElementById('send-btn');
@@ -397,16 +410,36 @@ function addToolNotice(lookup) {
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-function showQuickReplies() {
+function showQuickReplies(stage, context) {
   const wrap = document.createElement('div');
   wrap.className = 'quick-btns';
-  const prompts = [
-    'I want to be a sneaky rogue type',
-    'I want a powerful spellcaster',
-    'I want a tanky front-line fighter',
-    'I want a healer or support character',
-    'Surprise me with something interesting',
-  ];
+
+  let prompts = [];
+
+  if (stage === 'goal') {
+    prompts = [
+      'Roleplay-focused',
+      'Optimized',
+      'Somewhere in between',
+    ];
+  } else if (stage === 'playstyle') {
+    prompts = [
+      'I want to be in melee, up front',
+      'I want to cast spells from the back',
+      'I want to support and heal allies',
+      'I want to be stealthy and sneaky',
+      'I want a mix of combat and skills',
+    ];
+  } else if (stage === 'concept') {
+    prompts = [
+      'A grizzled veteran soldier',
+      'A curious scholar or sage',
+      'A street thief or criminal',
+      'A disgraced or fallen noble',
+      'Surprise me',
+    ];
+  }
+
   prompts.forEach(p => {
     const btn = document.createElement('button');
     btn.className = 'qbtn';
@@ -436,6 +469,11 @@ async function sendMessage(text) {
   autoResize();
   sendBtn.disabled = true;
 
+  // Advance stage when player answers the goal question
+  if (conversationStage === 'goal') {
+    conversationStage = 'playstyle';
+  }
+
   const { wrap: thinkWrap, div: thinkDiv } = addMessage('assistant', 'Thinking', true);
 
   try {
@@ -449,6 +487,17 @@ async function sendMessage(text) {
     const reply = data.reply || 'Sorry, something went wrong.';
     addMessage('assistant', reply);
     history.push({ role: 'assistant', content: reply });
+
+    // Show contextual quick replies based on conversation stage
+    if (conversationStage === 'goal') {
+      // After greeting, player hasn't answered goal question yet — buttons already shown
+    } else if (conversationStage === 'playstyle') {
+      showQuickReplies('playstyle');
+      conversationStage = 'concept';
+    } else if (conversationStage === 'concept') {
+      showQuickReplies('concept');
+      conversationStage = 'free';
+    }
   } catch (e) {
     thinkDiv.textContent = 'Something went wrong. Please try again.';
     thinkDiv.classList.remove('thinking');
@@ -480,7 +529,7 @@ inputEl.addEventListener('keydown', e => {
     addMessage('assistant', greeting);
     history.push({ role: 'user', content: 'Hello, I need help creating a Pathfinder 2e character.' });
     history.push({ role: 'assistant', content: greeting });
-    showQuickReplies();
+    showQuickReplies('goal');
   } catch {
     thinkDiv.textContent = 'Could not connect. Please refresh the page.';
     thinkDiv.classList.remove('thinking');
