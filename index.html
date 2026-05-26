@@ -117,6 +117,14 @@
       border-radius: 2px;
     }
 
+    .msg p {
+      margin-bottom: 0.6rem;
+    }
+
+    .msg p:last-child {
+      margin-bottom: 0;
+    }
+
     .msg ul {
       padding-left: 1.4rem;
       margin: 0.4rem 0;
@@ -349,23 +357,7 @@ Tell the player you are looking something up before each tool call, using natura
 
 When greeting the player for the first time, use exactly this message and no other:
 
-Welcome! I'm here to help you build a Pathfinder 2e character that you'll love playing.
-
-<i>First, a quick question to point us in the right direction:</i>
-
-Are you looking to build a character that's...
-
-<ul><li><b>Roleplay-focused:</b> choices that reflect your character's personality, backstory, and place in the world, even if some picks aren't the most powerful</li><li><b>Optimized:</b> built to perform as effectively as possible mechanically</li><li><b>Somewhere in between:</b> grounded in concept, but with an eye on making solid choices</li></ul>
-
-Once I know that, I'll ask you about:
-
-<ul><li><b>Your playstyle:</b> do you want to be in the thick of melee, casting from the back, supporting allies, sneaking around, or something else entirely?</li><li><b>Your character concept:</b> a grizzled veteran, a curious scholar, a street thief, a disgraced noble... anything that excites you, or just a vibe if you're not sure yet</li></ul>
-
-I can help you identify which classes, archetypes, and subclasses fit your vision, find ancestries and backgrounds that complement your character thematically and support your key attributes, and choose feats that align with your goals, whether that's storytelling, mechanical performance, or both.
-
-This campaign uses the <b>Free Archetype</b> rule. At 2nd level and every even level after, you receive a bonus feat that can only be spent on archetype feats. Archetypes cover a wide range of options that add flavor and capabilities beyond class dips. Your GM may restrict which archetypes are available to fit the campaign's theme, or leave it fully open. We'll talk through your options once your core class is settled, but check in with your GM to confirm.
-
-So, are you going roleplay-focused, optimized, or somewhere in between?`;
+<p>Welcome! I'm here to help you build a Pathfinder 2e character that you'll love playing.</p><p><i>First, a quick question to point us in the right direction:</i></p><p>Are you looking to build a character that's...</p><ul><li><b>Roleplay-focused:</b> choices that reflect your character's personality, backstory, and place in the world, even if some picks aren't the most powerful</li><li><b>Optimized:</b> built to perform as effectively as possible mechanically</li><li><b>Somewhere in between:</b> grounded in concept, but with an eye on making solid choices</li></ul><p>Once I know that, I'll ask you about:</p><ul><li><b>Your playstyle:</b> do you want to be in the thick of melee, casting from the back, supporting allies, sneaking around, or something else entirely?</li><li><b>Your character concept:</b> a grizzled veteran, a curious scholar, a street thief, a disgraced noble... anything that excites you, or just a vibe if you're not sure yet</li></ul><p>I can help you identify which classes, archetypes, and subclasses fit your vision, find ancestries and backgrounds that complement your character thematically and support your key attributes, and choose feats that align with your goals, whether that's storytelling, mechanical performance, or both.</p><p>This campaign uses the <b>Free Archetype</b> rule. At 2nd level and every even level after, you receive a bonus feat that can only be spent on archetype feats. Archetypes cover a wide range of options that add flavor and capabilities beyond class dips. Your GM may restrict which archetypes are available to fit the campaign's theme, or leave it fully open. We'll talk through your options once your core class is settled, but check in with your GM to confirm.</p><p>So, are you going roleplay-focused, optimized, or somewhere in between?</p>`;
 
 let history = [];
 let conversationStage = 'goal'; // goal -> playstyle -> concept -> free
