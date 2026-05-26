@@ -168,18 +168,22 @@ function executeQuery(input) {
 
   switch (query_type) {
     case 'backgrounds_by_ability': {
+      if (!ability) return 'No ability specified. Determine the class key attribute first, then query backgrounds by that ability.';
       const rows = getBackgroundsByAbility(ability);
       return `Found ${rows.length} backgrounds that boost ${ability}:\n\n${formatBackgrounds(rows)}`;
     }
     case 'ancestries_by_boost': {
+      if (!ability) return 'No ability specified. Determine what attribute to filter by first.';
       const rows = getAncestriesByBoost(ability);
       return `Found ${rows.length} ancestries with a ${ability} boost or Free boost:\n\n${formatAncestries(rows)}`;
     }
     case 'heritages': {
+      if (!ancestry_name) return 'No ancestry name provided. Ask the player which ancestry they chose before looking up heritages.';
       const rows = getHeritages(ancestry_name);
       return `Heritages for ${ancestry_name}:\n\n${formatHeritages(rows)}`;
     }
     case 'subclasses': {
+      if (!class_name) return 'No class name provided. Ask the player which class they chose before looking up subclasses.';
       const rows = getSubclasses(class_name);
       return rows.length > 0
         ? `Subclasses for ${class_name}:\n\n${formatSubclasses(rows)}`
@@ -197,13 +201,15 @@ function executeQuery(input) {
       return `Found ${rows.length} archetypes:\n\n${formatArchetypes(rows.slice(0, 50))}`;
     }
     case 'class': {
+      if (!name) return 'No class name provided. Ask the player which class they want to play before looking it up.';
       const row = getClass(name);
-      if (!row) return `Class "${name}" not found in local data.`;
+      if (!row) return `Class "${name}" not found in local data. Ask the player to clarify or suggest valid options.`;
       return `${row.name}: Key Attribute: ${row.ability} | HP: ${row.hp} | Tradition: ${row.tradition || 'None'} | Fort: ${row.fortitude} | Ref: ${row.reflex} | Will: ${row.will} | Perception: ${row.perception} | Skills: ${row.skill_proficiency}`;
     }
     case 'ancestry': {
+      if (!name) return 'No ancestry name provided. Ask the player which ancestry they want to play before looking it up.';
       const row = getAncestry(name);
-      if (!row) return `Ancestry "${name}" not found in local data.`;
+      if (!row) return `Ancestry "${name}" not found in local data. Ask the player to clarify or suggest valid options.`;
       return `${row.name}: HP: ${row.hp} | Size: ${row.size} | Speed: ${row.speed} | Boosts: ${row.ability_boost} | Flaw: ${row.ability_flaw || 'None'} | Vision: ${row.vision} | Languages: ${row.language} | ${row.description}`;
     }
     default:
@@ -319,7 +325,7 @@ exports.handler = async function (event) {
       data = await callAnthropic(ANTHROPIC_API_KEY, system, messages);
     }
 
-    const replyText = data.content?.find(b => b.type === "text")?.text || "";
+    const replyText = data.content?.find(b => b.type === "text")?.text || "I'm sorry, I wasn't able to generate a response. Could you rephrase or clarify what you're looking for?";
 
     return {
       statusCode: 200,
