@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Load data from separate JSON file
-const dataPath = path.join(__dirname, '../../pf2e-data.json');
+const dataPath = path.join(process.cwd(), 'pf2e-data.json');
 const PF2E_DATA = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
 
 const FREE_ARCHETYPE_RULE = `
