@@ -4,6 +4,7 @@
 
 [functions]
   node_bundler = "esbuild"
+  included_files = ["pf2e-data.json"]
 
 [functions."chat"]
   timeout = 26
