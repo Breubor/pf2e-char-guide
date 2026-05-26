@@ -294,36 +294,46 @@ exports.handler = async function (event) {
 
     while (data.stop_reason === "tool_use" && iterations < MAX_ITERATIONS) {
       iterations++;
-      const toolUseBlock = data.content.find(b => b.type === "tool_use");
-      if (!toolUseBlock) break;
 
-      const { name, input, id } = toolUseBlock;
-      let toolResult;
+      // Collect ALL tool_use blocks from this response
+      const toolUseBlocks = data.content.filter(b => b.type === "tool_use");
+      if (toolUseBlocks.length === 0) break;
 
-      if (name === "query_data") {
-        toolLookups.push({ type: "query", reason: `Local data: ${input.query_type}`, query_type: input.query_type });
-        try {
-          toolResult = executeQuery(input);
-          if (!toolResult) toolResult = "No results found for that query.";
-        } catch (err) {
-          toolResult = `Query failed: ${err.message}`;
+      // Process all tool calls and build all results before sending back
+      const toolResults = [];
+
+      for (const toolUseBlock of toolUseBlocks) {
+        const { name, input, id } = toolUseBlock;
+        let toolResult;
+
+        if (name === "query_data") {
+          toolLookups.push({ type: "query", reason: `Local data: ${input.query_type}`, query_type: input.query_type });
+          try {
+            toolResult = executeQuery(input);
+            if (!toolResult) toolResult = "No results found for that query.";
+          } catch (err) {
+            toolResult = `Query failed: ${err.message}`;
+          }
+        } else if (name === "fetch_nethys") {
+          toolLookups.push({ type: "fetch", reason: input.reason, url: input.url });
+          try {
+            toolResult = await fetchNethys(input.url);
+            if (!toolResult) toolResult = "No content returned from Nethys.";
+          } catch (err) {
+            toolResult = `Could not fetch ${input.url}: ${err.message}. Proceed without this lookup.`;
+          }
+        } else {
+          toolResult = `Unknown tool: ${name}. Ignore this and respond directly to the player.`;
         }
-      } else if (name === "fetch_nethys") {
-        toolLookups.push({ type: "fetch", reason: input.reason, url: input.url });
-        try {
-          toolResult = await fetchNethys(input.url);
-          if (!toolResult) toolResult = "No content returned from Nethys.";
-        } catch (err) {
-          toolResult = `Could not fetch ${input.url}: ${err.message}. Proceed without this lookup.`;
-        }
-      } else {
-        toolResult = `Unknown tool: ${name}. Ignore this tool call and respond directly to the player.`;
+
+        toolResults.push({ type: "tool_result", tool_use_id: id, content: toolResult });
       }
 
+      // Send ALL tool results back in a single message
       messages = [
         ...messages,
         { role: "assistant", content: data.content },
-        { role: "user", content: [{ type: "tool_result", tool_use_id: id, content: toolResult }] }
+        { role: "user", content: toolResults }
       ];
 
       data = await callAnthropic(ANTHROPIC_API_KEY, system, messages);
