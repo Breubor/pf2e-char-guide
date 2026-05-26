@@ -288,7 +288,7 @@ exports.handler = async function (event) {
     let messages = body.messages;
     let toolLookups = [];
     let iterations = 0;
-    const MAX_ITERATIONS = 6;
+    const MAX_ITERATIONS = 3;
 
     let data = await callAnthropic(ANTHROPIC_API_KEY, system, messages);
 
@@ -304,6 +304,7 @@ exports.handler = async function (event) {
         toolLookups.push({ type: "query", reason: `Local data: ${input.query_type}`, query_type: input.query_type });
         try {
           toolResult = executeQuery(input);
+          if (!toolResult) toolResult = "No results found for that query.";
         } catch (err) {
           toolResult = `Query failed: ${err.message}`;
         }
@@ -311,9 +312,12 @@ exports.handler = async function (event) {
         toolLookups.push({ type: "fetch", reason: input.reason, url: input.url });
         try {
           toolResult = await fetchNethys(input.url);
+          if (!toolResult) toolResult = "No content returned from Nethys.";
         } catch (err) {
           toolResult = `Could not fetch ${input.url}: ${err.message}. Proceed without this lookup.`;
         }
+      } else {
+        toolResult = `Unknown tool: ${name}. Ignore this tool call and respond directly to the player.`;
       }
 
       messages = [
@@ -325,7 +329,22 @@ exports.handler = async function (event) {
       data = await callAnthropic(ANTHROPIC_API_KEY, system, messages);
     }
 
-    const replyText = data.content?.find(b => b.type === "text")?.text || "I'm sorry, I wasn't able to generate a response. Could you rephrase or clarify what you're looking for?";
+    const replyText = data.content?.find(b => b.type === "text")?.text || "";
+    const stopReason = data.stop_reason || "unknown";
+    const hasError = data.error ? data.error.message : null;
+
+    // If empty reply, return a debug-friendly error
+    if (!replyText) {
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reply: "Something went wrong on my end. Please try again.",
+          toolLookups,
+          debug: { stopReason, hasError, iterations }
+        }),
+      };
+    }
 
     return {
       statusCode: 200,
